@@ -1,0 +1,114 @@
+﻿Compiling 1 files with Solc 0.8.33
+Solc 0.8.33 finished in 1.90s
+Compiler run successful!
+forge : Warning: Detected arti
+facts built from source files 
+that no longer exist. Run `for
+ge clean` to make sure builds 
+are in sync with project files
+.
+所在位置 行:1 字符: 1
++ forge script script/DeploySu
+bscription.s.sol --rpc-url htt
+ps://data-s ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~
+    + CategoryInfo          : 
+    NotSpecified: (Warning:   
+  Detect... project files.:   
+ String) [], RemoteExcepti    
+on
+    + FullyQualifiedErrorId : 
+    NativeCommandError
+ 
+ - E:/work_space/shll/repos/sh
+ll\script/CheckPolicies.s.sol
+ - E:/work_space/shll/repos/sh
+ll\script/SetupV30Templates.s.
+sol
+ - E:/work_space/shll/repos/sh
+ll\test/V3_0_Integration.t.sol
+ - E:/work_space/shll/repos/sh
+ll\script/FixTemplateDexWL.s.s
+ol
+ - E:/work_space/shll/repos/sh
+ll\script/DeployV30.s.sol
+ - E:/work_space/shll/repos/sh
+ll\script/FixAgentType.s.sol
+ - E:/work_space/shll/repos/sh
+ll\script/SwapOldPolicyForInst
+ances.s.sol
+ - E:/work_space/shll/repos/sh
+ll\script/DeployHotfixDexWhite
+list.s.sol
+ - E:/work_space/shll/repos/sh
+ll\test/DeployDebug.t.sol
+ - E:/work_space/shll/repos/sh
+ll\script/UpgradeAgentNFA.s.so
+l
+Script ran successfully.
+
+== Logs ==
+  ========================================================
+    P-033: Subscription Model Deployment
+  ========================================================
+  Deployer      : 0xc8306a4a2dA13F8e3c30D5096f19D5F01969Aa7D
+  Chain ID      : 97
+  AgentNFA      : 0xd48A6f58d1EC3D25fd86De005D2883a2b68c80E3
+  PolicyGuardV4 : 0xF6b1cda7510E33042E80cfADFba2dF271424f6b7
+  ========================================================
+  
+  [1/2] SubscriptionManager : 0x9Ac13A05ED4c8AFF625E9C6864cD0a4861666E22
+  [2/2] ListingManagerV2    : 0x089699EdbA224707fC9a5aEaA0907b3AC52Dcc70
+  
+  Wiring contracts...
+    [wire] ListingManagerV2.setAgentNFA     -> NFA
+    [wire] ListingManagerV2.setPolicyGuard  -> Guard
+    [wire] ListingManagerV2.setSubManager   -> SubMgr
+    [wire] SubscriptionManager.setLM        -> LMv2
+    [wire] SubscriptionManager.setAgentNFA  -> NFA
+  
+  ========================================================
+    DEPLOYMENT COMPLETE
+  ========================================================
+  
+  --- New Contracts ---
+  SUBSCRIPTION_MANAGER=0x9Ac13A05ED4c8AFF625E9C6864cD0a4861666E22
+  LISTING_MANAGER_V2=0x089699EdbA224707fC9a5aEaA0907b3AC52Dcc70
+  
+  --- Runner Env ---
+  SUBSCRIPTION_MANAGER_ADDRESS=0x9Ac13A05ED4c8AFF625E9C6864cD0a4861666E22
+  
+  --- Frontend Env ---
+  NEXT_PUBLIC_SUBSCRIPTION_MANAGER=0x9Ac13A05ED4c8AFF625E9C6864cD0a4861666E22
+  
+  ========================================================
+    IMPORTANT: NFA NOT SWITCHED YET
+    To activate V2 for new mints, run:
+    AgentNFA(0xd48A6f58d1EC3D25fd86De005D2883a2b68c80E3).setListingManager(0x089699EdbA224707fC9a5aEaA0907b3AC52Dcc70)
+  ========================================================
+
+## Setting up 1 EVM.
+
+==========================
+
+Chain 97
+
+Estimated gas price: 0.132 gwei
+
+Estimated total gas used for script: 3953730
+
+Estimated amount required: 0.00052189236 BNB
+
+==========================
+
+
+==========================
+
+ONCHAIN EXECUTION COMPLETE & SUCCESSFUL.
+
+Transactions saved to: E:/work_space/shll/repos/shll/broadcast\DeploySubscription.s.sol\97\run-latest.json
+
+Sensitive values saved to: E:/work_space/shll/repos/shll/cache\DeploySubscription.s.sol\97\run-latest.json
+

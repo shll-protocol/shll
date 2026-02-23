@@ -2,7 +2,9 @@
 pragma solidity ^0.8.24;
 
 import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
-import {IERC721} from "openzeppelin-contracts/contracts/token/ERC721/IERC721.sol";
+import {
+    IERC721
+} from "openzeppelin-contracts/contracts/token/ERC721/IERC721.sol";
 import {
     ERC165
 } from "openzeppelin-contracts/contracts/utils/introspection/ERC165.sol";
@@ -66,7 +68,7 @@ contract SpendingLimitPolicy is
     bytes4 private constant APPROVE = 0x095ea7b3;
     bytes4 private constant INCREASE_ALLOWANCE = 0x39509351; // increaseAllowance(address,uint256)
     bytes4 private constant DECREASE_ALLOWANCE = 0xa457c2d7; // decreaseAllowance(address,uint256)
-    bytes4 private constant PERMIT = 0xd505accf;   // ERC-2612 permit(address,address,uint256,uint256,uint8,bytes32,bytes32)
+    bytes4 private constant PERMIT = 0xd505accf; // ERC-2612 permit(address,address,uint256,uint256,uint8,bytes32,bytes32)
     bytes4 private constant DAI_PERMIT = 0x8fcbaf0c; // DAI permit(address,address,uint256,uint256,bool,uint8,bytes32,bytes32)
     bytes4 private constant TRANSFER = 0xa9059cbb;
     bytes4 private constant TRANSFER_FROM = 0x23b872dd;
@@ -145,6 +147,31 @@ contract SpendingLimitPolicy is
         emit TemplateApproveCeilingSet(templateId, maxApproveAmount);
     }
 
+    /// @notice Owner sets multiple template ceilings at once
+    function setTemplateCeilingBatch(
+        bytes32[] calldata templateIds,
+        Limits[] calldata limits
+    ) external {
+        require(msg.sender == Ownable(guard).owner(), "Only owner");
+        require(templateIds.length == limits.length, "Length mismatch");
+        for (uint256 i = 0; i < templateIds.length; i++) {
+            templateCeiling[templateIds[i]] = limits[i];
+            emit TemplateCeilingSet(
+                templateIds[i],
+                limits[i].maxPerTx,
+                limits[i].maxPerDay,
+                limits[i].maxSlippageBps
+            );
+        }
+    }
+
+    /// @notice Get the raw Limits struct for a template ceiling
+    function getTemplateCeiling(
+        bytes32 templateId
+    ) external view returns (Limits memory) {
+        return templateCeiling[templateId];
+    }
+
     /// @notice Owner configures which spender addresses can receive approvals
     function setApprovedSpender(address spender, bool allowed) external {
         require(msg.sender == Ownable(guard).owner(), "Only owner");
@@ -161,7 +188,7 @@ contract SpendingLimitPolicy is
         instanceTemplate[instanceId] = templateId;
     }
 
-    /// @notice Atomic init: copy template ceiling to instance limits (fail-close default)
+    /// @notice Atomic init: bind template and copy template ceiling to instance limits (fail-close default)
     /// @dev Called by PolicyGuardV4.bindInstance() via IInstanceInitializable
     function initInstance(
         uint256 instanceId,
@@ -170,19 +197,9 @@ contract SpendingLimitPolicy is
         if (msg.sender != guard) revert OnlyGuard();
         instanceTemplate[instanceId] = templateKey;
 
-        // Copy ceiling as default instance limits (renter can lower later)
-        Limits storage ceiling = templateCeiling[templateKey];
-        if (ceiling.maxPerTx > 0 || ceiling.maxPerDay > 0) {
-            instanceLimits[instanceId] = Limits(
-                ceiling.maxPerTx,
-                ceiling.maxPerDay,
-                ceiling.maxSlippageBps
-            );
-        }
-        uint256 approveCeiling = templateApproveCeiling[templateKey];
-        if (approveCeiling > 0) {
-            instanceApproveLimit[instanceId] = approveCeiling;
-        }
+        // Copy ceiling as default instance limits unconditionally
+        instanceLimits[instanceId] = templateCeiling[templateKey];
+        instanceApproveLimit[instanceId] = templateApproveCeiling[templateKey];
     }
 
     // ═══════════════════════════════════════════════════════
@@ -238,7 +255,8 @@ contract SpendingLimitPolicy is
         bytes32 tid = instanceTemplate[instanceId];
         uint256 ceiling = templateApproveCeiling[tid];
         require(ceiling > 0, "Approve ceiling not configured");
-        if (maxApproveAmount > ceiling) revert ExceedsCeiling("maxApproveAmount");
+        if (maxApproveAmount > ceiling)
+            revert ExceedsCeiling("maxApproveAmount");
         instanceApproveLimit[instanceId] = maxApproveAmount;
         emit InstanceApproveLimitSet(instanceId, maxApproveAmount);
     }
@@ -425,10 +443,11 @@ contract SpendingLimitPolicy is
         //   (uint256 amountOut, uint256 amountInMax, address[] path, address to, uint256 deadline)
         // We must use amountInMax (param[1]) as the effective spend ceiling.
         if (
-            selector == SWAP_TOKENS_EXACT ||
-            selector == SWAP_TOKENS_EXACT_ETH
+            selector == SWAP_TOKENS_EXACT || selector == SWAP_TOKENS_EXACT_ETH
         ) {
-            (, uint256 amountInMax, , , ) = CalldataDecoder.decodeSwap(callData);
+            (, uint256 amountInMax, , , ) = CalldataDecoder.decodeSwap(
+                callData
+            );
             return amountInMax > value ? amountInMax : value;
         }
 

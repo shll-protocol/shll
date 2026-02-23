@@ -21,7 +21,7 @@ SHLL lets an agent owner lease usage rights while keeping custody of funds in an
 
 **How to Reproduce:**
 1. Clone this repo.
-2. Follow the detailed guide: [SHLL_Template_Agent_Create_Guide.md](./script/SHLL_Template_Agent_Create_Guide.md)
+2. Follow the detailed guide: [SHLL_Template_Agent_Create_Guide.md](./legacy/docs/SHLL_Template_Agent_Create_Guide.md)
 3. View the result on [test.shll.run](https://test.shll.run) or verify the transactions on BscScan.
 
 
@@ -121,6 +121,8 @@ Copy and fill environment values:
 cp .env.example .env
 ```
 
+Canonical env file usage is documented in `ENV_FILES.md`.
+
 Common variables:
 
 - `PRIVATE_KEY`
@@ -128,40 +130,46 @@ Common variables:
 - `ETHERSCAN_API_KEY` (optional)
 - `POLICY_GUARD` (for policy scripts)
 
+Recommended active env files:
+
+- `.env` (base deploy/policy scripts)
+- `.env.demo-agent` (for `ListDemoAgent`)
+- `.env.update-pack` (for `UpdateAgentPack`)
+- `.env.mainnet` (mainnet profile, optional)
+- `.env.bak` (keep as local backup)
+
+Deprecated:
+
+- `.env.demo.legacy` (old demo profile; replaced by `.env.demo-agent`)
+
 ## Deployment
 
 Deploy contracts:
 
 ```bash
-PRIVATE_KEY=0x... forge script script/Deploy.s.sol --rpc-url $RPC_URL --broadcast
-```
-
-Apply policy configuration:
-
-```bash
-PRIVATE_KEY=0x... POLICY_GUARD=0x... CONFIG_PATH=configs/bsc.mainnet.json \
-  forge script script/ApplyPolicy.s.sol --rpc-url $RPC_URL --broadcast
+forge script script/DeployV30Full.s.sol:DeployV30Full --rpc-url $RPC_URL --broadcast --gas-price 5000000000 -vvv
 ```
 
 Mint + list one demo agent (template):
 
 ```bash
-# 1) Fill env values
-cp script/demo-agent.env.example .env.demo-agent
+powershell -ExecutionPolicy Bypass -File .\script\run-list-demo.ps1 -EnvFile .\.env.demo-agent -Broadcast
+```
 
-# 2) Export env vars and run (bash example)
-set -a && source .env.demo-agent && set +a
-forge script script/ListDemoAgent.s.sol --rpc-url $RPC_URL --broadcast
+Update an existing agent pack:
+
+```bash
+powershell -ExecutionPolicy Bypass -File .\script\run-update-pack.ps1 -EnvFile .\.env.update-pack -Broadcast
 ```
 
 ## Network Configs
 
 Policy/address presets live in `configs/`:
 
-- `configs/opbnb.mainnet.json`
-- `configs/opbnb.testnet.json`
 - `configs/bsc.mainnet.json`
 - `configs/bsc.testnet.json`
+
+Archived network presets are in `legacy/configs/`.
 
 ## BSC Testnet Addresses
 
@@ -177,24 +185,24 @@ Policy/address presets live in `configs/`:
 src/
   AgentNFA.sol
   AgentAccount.sol
-  PolicyGuard.sol
+  PolicyGuardV4.sol
   ListingManager.sol
   types/Action.sol
   interfaces/
   libs/
 script/
-  Deploy.s.sol
-  ApplyPolicy.s.sol
-  CheckPolicy.s.sol
+  DeployV30Full.s.sol
+  DeployDeFiGuard.s.sol
   ListDemoAgent.s.sol
+  UpdateAgentPack.s.sol
   MintTestAgents.s.sol
   demo-agent.env.example
 test/
   AgentNFA.t.sol
-  PolicyGuard.t.sol
   OperatorPermit.t.sol
   Integration.t.sol
 configs/
+legacy/
 ```
 
 ## AI Development Logs
