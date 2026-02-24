@@ -228,6 +228,13 @@ contract DeFiGuardPolicy is IPolicy, ERC165 {
             return (false, "Function not allowed");
         }
 
+        // approve/decreaseAllowance target is the token contract, not a DEX.
+        // Security for these is handled by SpendingLimitPolicy (approvedSpender + approveLimit).
+        // Skip target whitelist to avoid needing every token address whitelisted.
+        if (selector == bytes4(0x095ea7b3) || selector == bytes4(0xa457c2d7)) {
+            return (true, "");
+        }
+
         // Layer 3: Whitelist — global OR per-instance
         // Fail-close: unconfigured target whitelist blocks all calls.
         if (
