@@ -1,91 +1,66 @@
-﻿# SHLL Protocol Contracts
+﻿# SHLL Protocol Contracts - The Agent Smart Contract Layer
 
 中文说明: [README.zh.md](./README.zh.md)
 
+Official Website: https://shll.run
+Official DApp: https://app.shll.xyz
 Official X: https://x.com/shllrun
-Testnet: https://test.shll.run
+Skills (MCP/CLI): [shll-skills](https://www.npmjs.com/package/shll-skills)
 
-Secure, permissionless AI Agent rental contracts on BNB Chain.
+Secure, permissionless AI Agent rental and execution contracts on BNB Smart Chain.
 
-SHLL lets an agent owner lease usage rights while keeping custody of funds in an isolated vault. Renters can execute approved strategy actions, but every renter action is constrained by on-chain policy checks.
+SHLL lets an agent owner lease usage rights while keeping custody of funds in an isolated vault. Renters (or AI models) can execute approved strategy actions, but every single action is constrained by an on-chain firewall. 
 
-## 🏆 Hackathon Reproduction (Reviewers Start Here)
-
-**Verifiable On-Chain Proof:**
-- **Script**: `script/ListDemoAgent.s.sol`
-- **Function**: Deploys a Multi-Tenant Agent (Template), registers it, and creates a listing.
-- **Contracts (BSC Testnet)**:
-  - `AgentNFA`: `0x636557BFe696221bd05B78b04FB3d091A322D1dE`
-  - `PolicyGuard`: `0x6764B3eC699D56D3dA6a8a947107bEF416eA3d78`
-  - `ListingManager`: `0x8c5B5ed82e2fAFfd3cEA3F22d7CA56d033ba658d`
-
-**How to Reproduce:**
-1. Clone this repo.
-2. Follow the detailed guide: [SHLL_Template_Agent_Create_Guide.md](./legacy/docs/SHLL_Template_Agent_Create_Guide.md)
-3. View the result on [test.shll.run](https://test.shll.run) or verify the transactions on BscScan.
-
+---
 
 ## What This Repository Contains
 
-This repository (`repos/shll`) is the smart-contract core of SHLL:
+This repository (`repos/shll`) is the immutable smart-contract core of SHLL:
 
-- Agent identity and rental lifecycle (`AgentNFA`)
-- Isolated per-agent vault execution (`AgentAccount`)
-- On-chain firewall and limits (`PolicyGuard`)
-- Listing and rental marketplace flow (`ListingManager`)
+- **Agent Identity & Ownership** (`AgentNFA.sol`): Implements ERC-721, ERC-4907, and the native **BAP-578** (Non-Fungible Agent) standard for BNB Chain.
+- **Isolated Vaults** (`AgentAccount.sol`): The ERC-6551 inspired vault that holds the actual capital safely.
+- **On-chain Firewall** (`PolicyGuardV4.sol`): The 5-layer security engine that prevents AI from extracting value maliciously.
+- **Marketplace & Subscriptions** (`ListingManagerV2.sol`, `SubscriptionManager.sol`): Rent-to-Mint logic, time-based leasing, and fee routing.
 
-## System Design
+## 🛡️ V4 Architecture: The 5-Layer Security Model
 
-Core flow:
+The SHLL protocol protects renter capital from compromised or hallucinating AIs using a layered defense logic implemented in `PolicyGuardV4`:
 
-1. Owner mints an Agent NFA.
-2. Each agent maps to an isolated account vault.
-3. Owner lists the agent for rental.
-4. Renter receives temporary usage rights.
-5. Renter triggers actions through `AgentNFA.executeAction`.
-6. `PolicyGuard` validates target/selector/tokens/limits before vault call.
-
-Security invariant:
-
-- Renter can use the agent only within policy.
-- Renter cannot arbitrarily transfer owner assets out of vault.
-- Owner always retains ultimate control and can pause or reconfigure policy.
-
-## Contract Modules
-
-| Contract | Responsibility |
-|---|---|
-| `AgentNFA` | ERC-721 + ERC-4907 + BAP-578 metadata/lifecycle; rental user assignment; execution entrypoint |
-| `AgentAccount` | Isolated vault account per agent; executes approved calls |
-| `PolicyGuard` | On-chain policy engine: target/selector/token/spender/amount/deadline constraints |
-| `ListingManager` | Listing, rental, extension, cancellation, and fee flow |
-
-Supporting libraries:
-
-- `src/libs/Errors.sol`
-- `src/libs/CalldataDecoder.sol`
-- `src/libs/PolicyKeys.sol`
-
-## BAP-578 and Rental Semantics
-
-- BAP-578 enriches each agent with machine-readable metadata and a standard action model.
-- ERC-4907 provides owner/user separation with an expiry-based usage right.
-- `AgentNFA` binds these capabilities into explicit on-chain rental behavior.
-
-## Repository Links
-
-This workspace has multiple SHLL repositories for end-to-end development:
-
-| Component | Local Path | Repository URL |
+| Layer | Policy | Defense Mechanism |
 |---|---|---|
-| Contracts (this repo) | `repos/shll` | https://github.com/kledx/shll |
-| Web App | `repos/shll-web` | https://github.com/kledx/shll-web |
-| Runner Service | `repos/shll-runner` | https://github.com/kledx/shll-runner.git |
-| Indexer | `repos/shll-indexer` | https://github.com/kledx/shll-indexer |
+| **L1** | `ReceiverGuardPolicy` | **No Extraction**: AI cannot `transfer` funds. All swapped/yield assets are strictly routed back to the Agent's Vault. |
+| **L2** | `SpendingLimitPolicyV2`| **Loss Capping**: Imposes maximum trade amounts and strict slippage tolerance per execution. |
+| **L3** | `TokenWhitelistPolicy` / `DexWhitelistPolicy` | **Scam Protection**: Restricts operations exclusively to approved high-liquidity tokens and verifiable DEX routers. |
+| **L4** | `DeFiGuardPolicyV2` | **Function Filtering**: Prevents malicious contract deployments or calling arbitrary, destructive functions. |
+| **L5** | `CooldownPolicy` | **Circuit Breaker**: Enforces a minimum time delay between trades to prevent hyper-frequency fee draining. |
 
-Note: the runner URL above is the remote currently configured in this workspace.
+*Even if an AI's private key (hot wallet) is fully exposed, the attacker cannot steal the funds.*
 
-Development note: this project was completed fully with vibe coding. For full build context and decision trails, see [ailogs](./ailogs/).
+## BAP-578 (Non-Fungible Agents)
+
+SHLL represents AI Agents as **BAP-578** tokens. 
+- **Standardized Execution**: Native `.executeAction()` bindings for AIs.
+- **Rent-to-Mint**: Users can instantly clone a trading strategy into their own isolated Agent Account vault.
+- **True Ownership**: The AI is a tradeable, transferable, and inheritable on-chain economic entity.
+
+## BSC Mainnet Contract Addresses
+
+| Component / Policy | V4 Mainnet Address |
+| --- | --- |
+| **Core Contracts** | |
+| `AgentNFA` | `0xe98dcdbf370d7b52c9a2b88f79bef514a5375a2b` |
+| `PolicyGuardV4` | `0x25d17ea0e3bcb8ca08a2bfe917e817afc05dbbb3` |
+| `SubscriptionManager` | `0x66487D5509005825C85EB3AAE06c3Ec443eF7359` |
+| `ListingManagerV2` | `0x1f9CE85bD0FF75acc3D92eB79f1Eb472f0865071` |
+| **Security Policies** | |
+| `SpendingLimitPolicyV2` | `0xd942dEe00d65c8012E39037a7a77Bc50645e5338` |
+| `ReceiverGuardPolicyV2` | `0x54809f7B7801dD9689bb99dbb4d7Ac4bfcDd6d46` |
+| `DexWhitelistPolicyV2` | `0xBa411c5Ef09f8116044dfC1356C6Cd1e0E7ede0D` |
+| `TokenWhitelistPolicy` | `0xfd8e7f4180ea5af0d61c2037cd7ceecf34bee1e1` |
+| `DeFiGuardPolicyV2` | `0xB248AF39b849fB10c271f13220c86be4cb56eD0e` |
+| `CooldownPolicyV2` | `0x1169d1B2A6f597da152f153437376729371735ea` |
+
+*(All contracts are verified and open-source on BscScan).*
 
 ## Requirements
 
@@ -99,115 +74,37 @@ curl -L https://foundry.paradigm.xyz | bash
 foundryup
 ```
 
-## Quick Start
+## Quick Start & Testing
 
 ```bash
 forge build
-forge test
-```
-
-Useful commands:
-
-```bash
-forge fmt
 forge test -vvv
 ```
 
-## Environment
+## Deployment
 
-Copy and fill environment values:
+Copy and fill environment values from `.env.example`:
 
 ```bash
 cp .env.example .env
 ```
 
-Canonical env file usage is documented in `ENV_FILES.md`.
-
-Common variables:
-
-- `PRIVATE_KEY`
-- `RPC_URL`
-- `ETHERSCAN_API_KEY` (optional)
-- `POLICY_GUARD` (for policy scripts)
-
-Recommended active env files:
-
-- `.env` (base deploy/policy scripts)
-- `.env.demo-agent` (for `ListDemoAgent`)
-- `.env.update-pack` (for `UpdateAgentPack`)
-- `.env.mainnet` (mainnet profile, optional)
-- `.env.bak` (keep as local backup)
-
-Deprecated:
-
-- `.env.demo.legacy` (old demo profile; replaced by `.env.demo-agent`)
-
-## Deployment
-
-Deploy contracts:
+To deploy the V4 environment:
 
 ```bash
-forge script script/DeployV30Full.s.sol:DeployV30Full --rpc-url $RPC_URL --broadcast --gas-price 5000000000 -vvv
+forge script script/DeployV40Full.s.sol:DeployV40Full --rpc-url $RPC_URL --broadcast --verify
 ```
 
-Mint + list one demo agent (template):
+## SHLL Monorepo Structure
 
-```bash
-powershell -ExecutionPolicy Bypass -File .\script\run-list-demo.ps1 -EnvFile .\.env.demo-agent -Broadcast
-```
+This workspace has multiple SHLL repositories for end-to-end AI Agent development:
 
-Update an existing agent pack:
-
-```bash
-powershell -ExecutionPolicy Bypass -File .\script\run-update-pack.ps1 -EnvFile .\.env.update-pack -Broadcast
-```
-
-## Network Configs
-
-Policy/address presets live in `configs/`:
-
-- `configs/bsc.mainnet.json`
-- `configs/bsc.testnet.json`
-
-Archived network presets are in `legacy/configs/`.
-
-## BSC Testnet Addresses
-
-| Contract | Address |
-|---|---|
-| `PolicyGuard` | `0x6764B3eC699D56D3dA6a8a947107bEF416eA3d78` |
-| `AgentNFA` | `0x636557BFe696221bd05B78b04FB3d091A322D1dE` |
-| `ListingManager` | `0x8c5B5ed82e2fAFfd3cEA3F22d7CA56d033ba658d` |
-
-## Project Structure
-
-```text
-src/
-  AgentNFA.sol
-  AgentAccount.sol
-  PolicyGuardV4.sol
-  ListingManager.sol
-  types/Action.sol
-  interfaces/
-  libs/
-script/
-  DeployV30Full.s.sol
-  DeployDeFiGuard.s.sol
-  ListDemoAgent.s.sol
-  UpdateAgentPack.s.sol
-  MintTestAgents.s.sol
-  demo-agent.env.example
-test/
-  AgentNFA.t.sol
-  OperatorPermit.t.sol
-  Integration.t.sol
-configs/
-legacy/
-```
-
-## AI Development Logs
-
-Session logs are stored in [ailogs](./ailogs/).
+| Component | Repository Path | Description |
+|---|---|---|
+| **Contracts** (this repo) | [repos/shll](https://github.com/kledx/shll) | Core solidity protocol |
+| **OpenClaw Skill** | [repos/shll-openclaw-skill](https://github.com/kledx/shll-skills) | MCP Server & CLI tools for AIs (v5.4+) |
+| **Web App** | [repos/shll-web](https://github.com/kledx/shll-web) | Next.js dApp marketplace and dashboard |
+| **Indexer** | [repos/shll-indexer](https://github.com/kledx/shll-indexer) | Real-time Ponder indexing service |
 
 ## License
 
