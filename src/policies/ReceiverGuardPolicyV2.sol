@@ -121,10 +121,11 @@ contract ReceiverGuardPolicyV2 is IPolicy, ERC165 {
             // offset = 4 (selector) + 3*32 = 100
             recipient = address(uint160(uint256(bytes32(callData[100:132]))));
         } else if (pattern == 4) {
-            // V3_STRUCT_RECIPIENT_W1: struct with recipient at word 1
+            // V3_STRUCT_RECIPIENT_W1: struct with dynamic bytes as first field
             // e.g. exactInput({bytes path, address recipient, ...})
-            // offset = 4 (selector) + 1*32 = 36
-            recipient = address(uint160(uint256(bytes32(callData[36:68]))));
+            // ABI: word0 = offset to tuple, tuple.word0 = offset to bytes, tuple.word1 = recipient
+            // offset = 4 (selector) + 2*32 = 68
+            recipient = address(uint160(uint256(bytes32(callData[68:100]))));
         } else {
             return (true, ""); // Fallback: allow (unknown pattern registered)
         }
