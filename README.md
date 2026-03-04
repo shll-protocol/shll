@@ -1,4 +1,4 @@
-﻿# SHLL Protocol Contracts - The Agent Smart Contract Layer
+﻿# SHLL Protocol — The Agent Smart Contract Layer
 
 中文说明: [README.zh.md](./README.zh.md)
 
@@ -8,102 +8,120 @@ Skills (MCP/CLI): [shll-skills](https://www.npmjs.com/package/shll-skills)
 
 Secure, permissionless AI Agent rental and execution contracts on BNB Smart Chain.
 
-SHLL lets an agent owner lease usage rights while keeping custody of funds in an isolated vault. Renters (or AI models) can execute approved strategy actions, but every single action is constrained by an on-chain firewall. 
+SHLL lets an agent owner lease usage rights while keeping custody of funds in an isolated vault. Renters (or AI models) can execute approved strategy actions, but every single action is constrained by an on-chain firewall.
 
 ---
 
 ## What This Repository Contains
 
-This repository (`repos/shll`) is the immutable smart-contract core of SHLL:
-
-- **Agent Identity & Ownership** (`AgentNFA.sol`): Implements ERC-721, ERC-4907, and the native **BAP-578** (Non-Fungible Agent) standard for BNB Chain.
-- **Isolated Vaults** (`AgentAccount.sol`): The ERC-6551 inspired vault that holds the actual capital safely.
-- **On-chain Firewall** (`PolicyGuardV4.sol`): The 5-layer security engine that prevents AI from extracting value maliciously.
-- **Marketplace & Subscriptions** (`ListingManagerV2.sol`, `SubscriptionManager.sol`): Rent-to-Mint logic, time-based leasing, and fee routing.
-
-## 🛡️ V4 Architecture: The 5-Layer Security Model
-
-The SHLL protocol protects renter capital from compromised or hallucinating AIs using a layered defense logic implemented in `PolicyGuardV4`:
-
-| Layer | Policy | Defense Mechanism |
+| Component | Contract | Description |
 |---|---|---|
-| **L1** | `ReceiverGuardPolicy` | **No Extraction**: AI cannot `transfer` funds. All swapped/yield assets are strictly routed back to the Agent's Vault. |
-| **L2** | `SpendingLimitPolicyV2`| **Loss Capping**: Imposes maximum trade amounts and strict slippage tolerance per execution. |
-| **L3** | `TokenWhitelistPolicy` / `DexWhitelistPolicy` | **Scam Protection**: Restricts operations exclusively to approved high-liquidity tokens and verifiable DEX routers. |
-| **L4** | `DeFiGuardPolicyV2` | **Function Filtering**: Prevents malicious contract deployments or calling arbitrary, destructive functions. |
-| **L5** | `CooldownPolicy` | **Circuit Breaker**: Enforces a minimum time delay between trades to prevent hyper-frequency fee draining. |
+| **Agent Identity** | `AgentNFA.sol` | ERC-721 + ERC-4907 + BAP-578 (Non-Fungible Agent) standard |
+| **Isolated Vaults** | `AgentAccountV2.sol` | ERC-6551 inspired vault holding agent capital |
+| **On-chain Firewall** | `PolicyGuardV4.sol` | Policy engine coordinating all security policies |
+| **Marketplace** | `ListingManagerV2.sol` | Rent-to-Mint logic, time-based leasing |
+| **Subscriptions** | `SubscriptionManager.sol` | Subscription model and fee routing |
+| **Protocol Registry** | `ProtocolRegistry.sol` | DeFi protocol + function whitelist registry |
+| **Learning Module** | `LearningModule.sol` | On-chain agent learning and improvement tracking |
 
-*Even if an AI's private key (hot wallet) is fully exposed, the attacker cannot steal the funds.*
+## 🛡️ 4-Core Security Model
+
+The SHLL protocol protects renter capital from compromised or hallucinating AIs using 4 composable policies enforced by `PolicyGuardV4`:
+
+| Policy | Defense Mechanism |
+|---|---|
+| **SpendingLimitPolicyV2** | Per-transaction and daily spending caps for both native BNB and ERC20 swaps. Integrates token whitelist — only approved high-liquidity tokens allowed. |
+| **CooldownPolicyV2** | Minimum time interval between trades to prevent hyper-frequency fee draining. |
+| **DeFiGuardPolicyV2** | Router + function selector whitelist. Only verified DEX routers (PancakeSwap V2/V3) with approved swap methods can be called. Subsumes the old DexWhitelist. |
+| **ReceiverGuardPolicyV2** | All swap outputs strictly routed back to the Agent's Vault. No extraction to external addresses. |
+
+> **Fail-close**: If no policies are bound, all actions are blocked. Not "default allow."
+>
+> *Even if an AI's hot wallet key is fully exposed, the attacker cannot steal vault funds.*
 
 ## BAP-578 (Non-Fungible Agents)
 
-SHLL represents AI Agents as **BAP-578** tokens. 
-- **Standardized Execution**: Native `.executeAction()` bindings for AIs.
-- **Rent-to-Mint**: Users can instantly clone a trading strategy into their own isolated Agent Account vault.
-- **True Ownership**: The AI is a tradeable, transferable, and inheritable on-chain economic entity.
+SHLL represents AI Agents as **BAP-578** tokens on BNB Chain.
+
+- **Standardized Execution**: Native `.executeAction()` bindings for AIs
+- **Rent-to-Mint**: Users can instantly clone a trading strategy into their own isolated Agent Account vault
+- **True Ownership**: The AI is a tradeable, transferable, and inheritable on-chain economic entity
+- **Policy Validation Framework**: [Contributed to the BAP-578 standard](https://github.com/ChatAndBuild/non-fungible-agents-BAP-578/pull/32)
 
 ## BSC Mainnet Contract Addresses
 
-| Component / Policy | V4 Mainnet Address |
-| --- | --- |
+| Component / Policy | Mainnet Address |
+|---|---|
 | **Core Contracts** | |
-| `AgentNFA` | `0xe98dcdbf370d7b52c9a2b88f79bef514a5375a2b` |
-| `PolicyGuardV4` | `0x25d17ea0e3bcb8ca08a2bfe917e817afc05dbbb3` |
-| `SubscriptionManager` | `0x66487D5509005825C85EB3AAE06c3Ec443eF7359` |
-| `ListingManagerV2` | `0x1f9CE85bD0FF75acc3D92eB79f1Eb472f0865071` |
+| `AgentNFA` | [`0xe98dcdbf370d7b52c9a2b88f79bef514a5375a2b`](https://bscscan.com/address/0xe98dcdbf370d7b52c9a2b88f79bef514a5375a2b) |
+| `PolicyGuardV4` | [`0x25d17ea0e3bcb8ca08a2bfe917e817afc05dbbb3`](https://bscscan.com/address/0x25d17ea0e3bcb8ca08a2bfe917e817afc05dbbb3) |
+| `SubscriptionManager` | [`0x66487D5509005825C85EB3AAE06c3Ec443eF7359`](https://bscscan.com/address/0x66487D5509005825C85EB3AAE06c3Ec443eF7359) |
+| `ListingManagerV2` | [`0x1f9CE85bD0FF75acc3D92eB79f1Eb472f0865071`](https://bscscan.com/address/0x1f9CE85bD0FF75acc3D92eB79f1Eb472f0865071) |
 | **Security Policies** | |
-| `SpendingLimitPolicyV2` | `0xd942dEe00d65c8012E39037a7a77Bc50645e5338` |
-| `ReceiverGuardPolicyV2` | `0x54809f7B7801dD9689bb99dbb4d7Ac4bfcDd6d46` |
-| `DexWhitelistPolicyV2` | `0xBa411c5Ef09f8116044dfC1356C6Cd1e0E7ede0D` |
-| `TokenWhitelistPolicy` | `0xfd8e7f4180ea5af0d61c2037cd7ceecf34bee1e1` |
-| `DeFiGuardPolicyV2` | `0xB248AF39b849fB10c271f13220c86be4cb56eD0e` |
-| `CooldownPolicyV2` | `0x1169d1B2A6f597da152f153437376729371735ea` |
+| `SpendingLimitPolicyV2` | [`0xd942dEe00d65c8012E39037a7a77Bc50645e5338`](https://bscscan.com/address/0xd942dEe00d65c8012E39037a7a77Bc50645e5338) |
+| `ReceiverGuardPolicyV2` | [`0x54809f7B7801dD9689bb99dbb4d7Ac4bfcDd6d46`](https://bscscan.com/address/0x54809f7B7801dD9689bb99dbb4d7Ac4bfcDd6d46) |
+| `DeFiGuardPolicyV2` | [`0xB248AF39b849fB10c271f13220c86be4cb56eD0e`](https://bscscan.com/address/0xB248AF39b849fB10c271f13220c86be4cb56eD0e) |
+| `CooldownPolicyV2` | [`0x1169d1B2A6f597da152f153437376729371735ea`](https://bscscan.com/address/0x1169d1B2A6f597da152f153437376729371735ea) |
 
-*(All contracts are verified and open-source on BscScan).*
+*(All contracts are verified and open-source on BscScan)*
 
 ## Requirements
 
-- Foundry (`forge`, `cast`, `anvil`)
-- Solidity `0.8.33` (configured in `foundry.toml`)
-
-Install Foundry:
+- [Foundry](https://book.getfoundry.sh/) (`forge`, `cast`, `anvil`)
+- Solidity `^0.8.24`
 
 ```bash
 curl -L https://foundry.paradigm.xyz | bash
 foundryup
 ```
 
-## Quick Start & Testing
+## Quick Start
 
 ```bash
+# Build
 forge build
+
+# Test (278 tests)
 forge test -vvv
-```
 
-## Deployment
-
-Copy and fill environment values from `.env.example`:
-
-```bash
+# Deploy
 cp .env.example .env
+# Fill in your RPC_URL and deployer key
+forge script script/DeployV32PostAudit.s.sol --rpc-url $RPC_URL --broadcast --verify
 ```
 
-To deploy the V4 environment:
+## Repository Structure
 
-```bash
-forge script script/DeployV40Full.s.sol:DeployV40Full --rpc-url $RPC_URL --broadcast --verify
+```
+src/
+├── AgentNFA.sol              # ERC-721 + BAP-578 agent identity
+├── AgentAccountV2.sol        # ERC-6551 vault (holds agent capital)
+├── PolicyGuardV4.sol         # On-chain firewall / policy engine
+├── ListingManagerV2.sol      # Marketplace & rental logic
+├── SubscriptionManager.sol   # Subscription model
+├── ProtocolRegistry.sol      # DeFi protocol whitelist
+├── LearningModule.sol        # Agent learning tracking
+├── interfaces/               # All interfaces (IPolicy, ICommittable, etc.)
+├── policies/                 # SpendingLimit, Cooldown, DeFiGuard, ReceiverGuard
+├── libs/                     # CalldataDecoder, utilities
+└── types/                    # Shared type definitions
+
+test/                         # 278 Foundry test cases
+script/                       # Deployment & migration scripts
 ```
 
-## SHLL Monorepo Structure
+## SHLL Ecosystem
 
-This workspace has multiple SHLL repositories for end-to-end AI Agent development:
-
-| Component | Repository Path | Description |
+| Component | Repository | Description |
 |---|---|---|
-| **Contracts** (this repo) | [repos/shll](https://github.com/kledx/shll) | Core solidity protocol |
-| **OpenClaw Skill** | [repos/shll-openclaw-skill](https://github.com/kledx/shll-skills) | MCP Server & CLI tools for AIs (v5.4+) |
-| **Policy SDK** | [repos/shll-policy-sdk](https://github.com/kledx/shll-policy-sdk) | TypeScript SDK for BAP-578 & PolicyGuard interactions |
-| **Indexer** | [repos/shll-indexer](https://github.com/kledx/shll-indexer) | Real-time Ponder indexing service |
+| **Contracts** (this repo) | [shll-protocol/shll](https://github.com/shll-protocol/shll) | Core Solidity protocol |
+| **Skills** | [shll-protocol/shll-skills](https://github.com/shll-protocol/shll-skills) | MCP Server & CLI tools (v5.4+) |
+| **Policy SDK** | [shll-protocol/shll-policy-sdk](https://github.com/shll-protocol/shll-policy-sdk) | TypeScript SDK for BAP-578 & PolicyGuard |
+| **Indexer** | [shll-protocol/shll-indexer](https://github.com/shll-protocol/shll-indexer) | Real-time Ponder indexing service |
+
+## Contributing
+
+We welcome contributions! See our [BAP-578 Policy Validation Framework PR](https://github.com/ChatAndBuild/non-fungible-agents-BAP-578/pull/32) for an example of how we contribute to the ecosystem.
 
 ## License
 

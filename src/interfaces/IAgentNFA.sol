@@ -87,6 +87,7 @@ interface IAgentNFA {
     function accountOf(uint256 tokenId) external view returns (address);
     function policyIdOf(uint256 tokenId) external view returns (bytes32);
     function setPolicy(uint256 tokenId, bytes32 newPolicyId) external;
+    function setSubscriptionManager(address _subscriptionManager) external;
     function agentStatus(
         uint256 tokenId
     ) external view returns (IBAP578.Status);

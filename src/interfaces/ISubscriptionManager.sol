@@ -92,4 +92,16 @@ interface ISubscriptionManager {
 
     /// @notice Cancel a subscription (subscriber only)
     function cancelSubscription(uint256 instanceId) external;
+
+    /// @notice Admin backfill for legacy instances without subscription records
+    /// @dev Intended for one-time migration; implementation may require paused state.
+    function adminBackfillSubscription(
+        uint256 instanceId,
+        address subscriber,
+        bytes32 listingId,
+        uint96 pricePerPeriod,
+        uint32 periodDays,
+        uint32 gracePeriodDays,
+        uint64 currentPeriodEnd
+    ) external;
 }

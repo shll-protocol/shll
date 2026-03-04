@@ -25,6 +25,7 @@ contract SubscriptionTest is Test {
     address owner = address(this);
     address renter = address(0xBEEF);
     address evil = address(0xDEAD);
+    address constant ROUTER = address(0x1111);
 
     uint256 templateId;
     bytes32 listingId;
@@ -50,6 +51,7 @@ contract SubscriptionTest is Test {
 
         // Wire up
         nfa.setListingManager(address(listing));
+        nfa.setSubscriptionManager(address(subManager));
         guard.setAgentNFA(address(nfa));
         guard.setListingManager(address(listing));
         listing.setPolicyGuard(address(guard));
@@ -69,6 +71,7 @@ contract SubscriptionTest is Test {
         nfa.registerTemplate(templateId, bytes32("default-template"));
         guard.approvePolicyContract(address(dexWL));
         guard.addTemplatePolicy(bytes32("default-template"), address(dexWL));
+        dexWL.addDex(templateId, ROUTER);
 
         // Create listing
         listingId = listing.createTemplateListing(
@@ -98,6 +101,12 @@ contract SubscriptionTest is Test {
             0,
             ""
         );
+    }
+
+    function _executeSimpleAction(uint256 instanceId) internal {
+        Action memory action = Action({target: ROUTER, value: 0, data: ""});
+        vm.prank(renter);
+        nfa.execute(instanceId, action);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -276,6 +285,74 @@ contract SubscriptionTest is Test {
                 ISubscriptionManager.SubscriptionStatus.Canceled
         );
         assertFalse(subManager.canExecute(instanceId));
+    }
+
+    function test_subscription_activeExecution_allowedOnChain() public {
+        uint256 instanceId = _rentInstance(7);
+        _executeSimpleAction(instanceId);
+    }
+
+    function test_subscription_gracePeriodExecution_revertsOnChain() public {
+        uint256 instanceId = _rentInstance(7);
+        vm.warp(block.timestamp + 8 days);
+
+        Action memory action = Action({target: ROUTER, value: 0, data: ""});
+        vm.prank(renter);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Errors.SubscriptionNotActive.selector,
+                instanceId
+            )
+        );
+        nfa.execute(instanceId, action);
+    }
+
+    function test_subscription_expiredExecution_revertsOnChain() public {
+        uint256 instanceId = _rentInstance(7);
+        vm.warp(block.timestamp + 15 days);
+
+        Action memory action = Action({target: ROUTER, value: 0, data: ""});
+        vm.prank(renter);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Errors.SubscriptionNotActive.selector,
+                instanceId
+            )
+        );
+        nfa.execute(instanceId, action);
+    }
+
+    function test_subscription_canceledExecution_revertsOnChain() public {
+        uint256 instanceId = _rentInstance(7);
+        vm.prank(renter);
+        subManager.cancelSubscription(instanceId);
+
+        Action memory action = Action({target: ROUTER, value: 0, data: ""});
+        vm.prank(renter);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Errors.SubscriptionNotActive.selector,
+                instanceId
+            )
+        );
+        nfa.execute(instanceId, action);
+    }
+
+    function test_subscription_canceledCanWithdrawVaultAssets() public {
+        uint256 instanceId = _rentInstance(7);
+        address account = nfa.accountOf(instanceId);
+
+        vm.deal(address(this), 1 ether);
+        (bool ok, ) = account.call{value: 0.5 ether}("");
+        assertTrue(ok, "fund vault failed");
+
+        vm.prank(renter);
+        subManager.cancelSubscription(instanceId);
+
+        uint256 beforeBal = account.balance;
+        vm.prank(renter);
+        AgentAccount(payable(account)).withdrawNative(0.1 ether, renter);
+        assertEq(account.balance, beforeBal - 0.1 ether);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -516,6 +593,101 @@ contract SubscriptionTest is Test {
     // ═══════════════════════════════════════════════════════════
     //              LEGACY COMPATIBILITY
     // ═══════════════════════════════════════════════════════════
+
+    function test_security_noneSubscriptionRecord_cannotExecuteOnChain() public {
+        uint64 expires = uint64(block.timestamp + 7 days);
+        uint256 instanceId;
+        vm.prank(address(listing));
+        instanceId = nfa.mintInstanceFromTemplate(renter, templateId, expires, "");
+
+        // No SubscriptionManager.createSubscription was called for this instance.
+        assertTrue(
+            subManager.getEffectiveStatus(instanceId) ==
+                ISubscriptionManager.SubscriptionStatus.None
+        );
+
+        Action memory action = Action({target: ROUTER, value: 0, data: ""});
+        vm.prank(renter);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Errors.SubscriptionNotActive.selector,
+                instanceId
+            )
+        );
+        nfa.execute(instanceId, action);
+    }
+
+    function test_security_adminBackfill_requiresPaused() public {
+        uint64 expires = uint64(block.timestamp + 7 days);
+        uint256 instanceId;
+        vm.prank(address(listing));
+        instanceId = nfa.mintInstanceFromTemplate(renter, templateId, expires, "");
+
+        vm.expectRevert("Pausable: not paused");
+        subManager.adminBackfillSubscription(
+            instanceId,
+            renter,
+            bytes32("legacy"),
+            0.7 ether,
+            7,
+            7,
+            uint64(block.timestamp + 30 days)
+        );
+    }
+
+    function test_security_adminBackfill_onlyOwner() public {
+        uint64 expires = uint64(block.timestamp + 7 days);
+        uint256 instanceId;
+        vm.prank(address(listing));
+        instanceId = nfa.mintInstanceFromTemplate(renter, templateId, expires, "");
+
+        subManager.pause();
+        vm.prank(evil);
+        vm.expectRevert("Ownable: caller is not the owner");
+        subManager.adminBackfillSubscription(
+            instanceId,
+            renter,
+            bytes32("legacy"),
+            0.7 ether,
+            7,
+            7,
+            uint64(block.timestamp + 30 days)
+        );
+    }
+
+    function test_security_adminBackfill_legacyInstance_canExecuteAgain() public {
+        uint64 expires = uint64(block.timestamp + 7 days);
+        uint256 instanceId;
+        vm.prank(address(listing));
+        instanceId = nfa.mintInstanceFromTemplate(renter, templateId, expires, "");
+        vm.prank(address(listing));
+        guard.bindInstance(instanceId, bytes32("default-template"));
+
+        Action memory action = Action({target: ROUTER, value: 0, data: ""});
+        vm.prank(renter);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Errors.SubscriptionNotActive.selector,
+                instanceId
+            )
+        );
+        nfa.execute(instanceId, action);
+
+        subManager.pause();
+        subManager.adminBackfillSubscription(
+            instanceId,
+            renter,
+            bytes32("legacy"),
+            0.7 ether,
+            7,
+            7,
+            uint64(block.timestamp + 30 days)
+        );
+        subManager.unpause();
+
+        assertTrue(subManager.canExecute(instanceId));
+        _executeSimpleAction(instanceId);
+    }
 
     function test_legacy_noSubscriptionReturnsNone() public view {
         // Token 999 has no subscription

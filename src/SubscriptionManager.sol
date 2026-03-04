@@ -129,6 +129,54 @@ contract SubscriptionManager is
         );
     }
 
+    /// @notice Admin backfill subscription record for legacy instances
+    /// @dev Migration-only path. Requires paused mode to avoid live-race conditions.
+    function adminBackfillSubscription(
+        uint256 instanceId,
+        address subscriber,
+        bytes32 listingId,
+        uint96 pricePerPeriod,
+        uint32 periodDays,
+        uint32 gracePeriodDays,
+        uint64 currentPeriodEnd
+    ) external onlyOwner whenPaused {
+        if (subscriber == address(0)) revert Errors.ZeroAddress();
+        if (periodDays == 0) revert Errors.InvalidInitParams();
+        if (currentPeriodEnd == 0) revert Errors.InvalidInitParams();
+        if (gracePeriodDays > maxGracePeriodDays) {
+            revert Errors.GracePeriodTooLong(
+                gracePeriodDays,
+                maxGracePeriodDays
+            );
+        }
+        if (_subscriptions[instanceId].subscriber != address(0)) {
+            revert Errors.SubscriptionAlreadyExists(instanceId);
+        }
+
+        uint64 graceEnd = currentPeriodEnd + uint64(gracePeriodDays) * 1 days;
+        _subscriptions[instanceId] = Subscription({
+            subscriber: subscriber,
+            listingId: listingId,
+            currentPeriodEnd: currentPeriodEnd,
+            gracePeriodEnd: graceEnd,
+            pricePerPeriod: pricePerPeriod,
+            periodDays: periodDays,
+            gracePeriodDays: gracePeriodDays,
+            status: SubscriptionStatus.Active
+        });
+
+        emit SubscriptionCreated(
+            instanceId,
+            subscriber,
+            listingId,
+            periodDays,
+            gracePeriodDays,
+            pricePerPeriod,
+            currentPeriodEnd,
+            graceEnd
+        );
+    }
+
     /// @notice Admin update grace period for a specific subscription
     /// @param instanceId The instance to update
     /// @param newGracePeriodDays New grace period in days

@@ -45,7 +45,7 @@ contract AgentNFAExtensionsTest is Test {
     function test_EnableLearning_Owner() public {
         vm.prank(owner);
         extensions.enableLearning(MOCK_TOKEN_ID, true);
-        (bool enabled, ) = extensions.getLearningMetrics(MOCK_TOKEN_ID);
+        (bool enabled, , ) = extensions.getLearningMetrics(MOCK_TOKEN_ID);
         assertTrue(enabled);
     }
 
@@ -56,7 +56,7 @@ contract AgentNFAExtensionsTest is Test {
         // We'll test with owner.
         vm.prank(owner);
         extensions.enableLearning(MOCK_TOKEN_ID, true);
-        (bool enabled, ) = extensions.getLearningMetrics(MOCK_TOKEN_ID);
+        (bool enabled, , ) = extensions.getLearningMetrics(MOCK_TOKEN_ID);
         assertTrue(enabled);
     }
 
@@ -66,19 +66,23 @@ contract AgentNFAExtensionsTest is Test {
         extensions.enableLearning(MOCK_TOKEN_ID, true);
     }
 
-    function test_UpdateLearningRoot() public {
+    function test_AppendLearning() public {
         bytes32 newRoot = keccak256("root");
+        bytes32 leafHash = keccak256("leaf");
         vm.prank(owner);
-        extensions.updateLearningRoot(MOCK_TOKEN_ID, newRoot);
-        (, bytes32 currentRoot) = extensions.getLearningMetrics(MOCK_TOKEN_ID);
+        extensions.appendLearning(MOCK_TOKEN_ID, leafHash, newRoot);
+        (, bytes32 currentRoot, ) = extensions.getLearningMetrics(
+            MOCK_TOKEN_ID
+        );
         assertEq(currentRoot, newRoot);
     }
 
-    function test_UpdateLearningRoot_RevertHacker() public {
+    function test_AppendLearning_RevertHacker() public {
         bytes32 newRoot = keccak256("root");
+        bytes32 leafHash = keccak256("leaf");
         vm.prank(hacker);
         vm.expectRevert(AgentNFAExtensions.NotOwnerOrRenter.selector);
-        extensions.updateLearningRoot(MOCK_TOKEN_ID, newRoot);
+        extensions.appendLearning(MOCK_TOKEN_ID, leafHash, newRoot);
     }
 
     function test_SetMemoryRegistry() public {

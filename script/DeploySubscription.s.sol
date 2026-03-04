@@ -108,7 +108,16 @@ contract DeploySubscription is Script {
         console.log("");
         console.log("========================================================");
         console.log("  IMPORTANT: NFA NOT SWITCHED YET");
-        console.log("  To activate V2 for new mints, run:");
+        console.log("  To activate subscription gating + V2 listing, run:");
+        console.log(
+            string.concat(
+                "  AgentNFA(",
+                vm.toString(agentNfa),
+                ").setSubscriptionManager(",
+                vm.toString(address(subManager)),
+                ")"
+            )
+        );
         console.log(
             string.concat(
                 "  AgentNFA(",

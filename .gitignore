@@ -21,6 +21,8 @@ node_modules/
 *.tmp
 *.bak
 build_output*
+build_errors*
+deploy_output*
 .DS_Store
 Thumbs.db
 # Mainnet env (contains sensitive config)

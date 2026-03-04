@@ -51,20 +51,38 @@ contract AgentNFAExtensions is ILearningModule, IMemoryModuleRegistry {
         emit LearningStateChanged(tokenId, enabled);
     }
 
-    function updateLearningRoot(
+    /// @dev V4 PoP append — in Extensions this is a legacy stub.
+    ///      New deployments should use the standalone LearningModule contract.
+    function appendLearning(
         uint256 tokenId,
+        bytes32 newLeafHash,
         bytes32 newRoot
     ) external override {
-        // Typically updated dynamically by the agent runner or owner
         _requireOwnerOrRenter(tokenId);
         learningRoot[tokenId] = newRoot;
-        emit LearningRootUpdated(tokenId, newRoot);
+        emit LearningRootUpdated(tokenId, newRoot, 0);
+    }
+
+    /// @dev V4 PoP batch append — legacy stub
+    function batchAppendLearning(
+        uint256 tokenId,
+        bytes32[] calldata,
+        bytes32 newRoot
+    ) external override {
+        _requireOwnerOrRenter(tokenId);
+        learningRoot[tokenId] = newRoot;
+        emit LearningRootUpdated(tokenId, newRoot, 0);
     }
 
     function getLearningMetrics(
         uint256 tokenId
-    ) external view override returns (bool isEnabled, bytes32 currentRoot) {
-        return (learningEnabled[tokenId], learningRoot[tokenId]);
+    )
+        external
+        view
+        override
+        returns (bool isEnabled, bytes32 currentRoot, uint256 totalLeaves)
+    {
+        return (learningEnabled[tokenId], learningRoot[tokenId], 0);
     }
 
     // --- IMemoryModuleRegistry ---

@@ -34,6 +34,12 @@ Load env file and run `ListDemoAgent.s.sol`.
 10. `run-update-pack.ps1`
 Load env file and run `UpdateAgentPack.s.sol`.
 
+11. `BackfillLegacySubscription.s.sol`
+Backfill one legacy instance subscription record for strict subscription mode migration.
+
+12. `run-backfill-legacy.ps1`
+Batch backfill helper using CSV rows (one row = one instance subscription record).
+
 ## Env Templates
 
 1. `script/demo-agent.env.example`
@@ -83,6 +89,28 @@ powershell -ExecutionPolicy Bypass -File .\repos\shll\script\run-update-pack.ps1
 ```powershell
 cd repos/shll; node --experimental-strip-types script/hashPack.ts ..\shll-packs-private\base_trader\manifest.json
 ```
+
+### Backfill Legacy Subscription (Strict Mode Migration)
+
+```powershell
+cd repos/shll
+forge script script/BackfillLegacySubscription.s.sol:BackfillLegacySubscription --rpc-url $env:RPC_URL --broadcast -vvv
+```
+
+**Required env vars**: `SUBSCRIPTION_MANAGER`, `AGENT_NFA`, `INSTANCE_ID`, `LISTING_ID`, `PRICE_PER_PERIOD`, `PERIOD_DAYS`, `GRACE_DAYS`, `CURRENT_PERIOD_END`  
+**Optional**: `SUBSCRIBER` (defaults to current owner), `DRY_RUN=true`  
+**Precondition**: `SubscriptionManager.pause()` has been executed before backfill.
+
+### Batch Backfill (CSV)
+
+```powershell
+cd repos/shll
+powershell -ExecutionPolicy Bypass -File .\script\run-backfill-legacy.ps1 -CsvPath .\script\legacy-backfill.csv -RpcUrl $env:RPC_URL
+powershell -ExecutionPolicy Bypass -File .\script\run-backfill-legacy.ps1 -CsvPath .\script\legacy-backfill.csv -RpcUrl $env:RPC_URL -Broadcast
+```
+
+CSV header:
+`instanceId,listingId,pricePerPeriod,periodDays,graceDays,currentPeriodEnd,subscriber`
 
 ## Legacy Scripts
 
